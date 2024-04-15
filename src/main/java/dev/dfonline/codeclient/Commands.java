@@ -120,6 +120,19 @@ public class Commands {
             return 0;
         }));
 
+        dispatcher.register(literal("overwrite").executes(context -> {
+            CodeClient.overwriteSuggestions = true;
+            Utility.sendMessage(Text.literal("Next time it will overwrite suggestions."));
+
+            return 0;
+        }));
+
+        dispatcher.register(literal("comparecommands").executes(context -> {
+            CodeClient.compareCommands = true;
+            Utility.sendMessage(Text.literal("Next time you press TAB it will compare suggestions."));
+            return 0;
+        }));
+
 //        dispatcher.register(literal("back").executes(context -> {
 //            if(CodeClient.location instanceof Creator plot) {
 //                if(plot.devPos == null) {

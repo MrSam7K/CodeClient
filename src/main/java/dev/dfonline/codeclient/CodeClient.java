@@ -1,6 +1,7 @@
 package dev.dfonline.codeclient;
 
 import com.google.gson.Gson;
+import com.mojang.brigadier.suggestion.Suggestions;
 import dev.dfonline.codeclient.action.Action;
 import dev.dfonline.codeclient.action.None;
 import dev.dfonline.codeclient.config.Config;
@@ -24,7 +25,6 @@ import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallba
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
-import net.fabricmc.fabric.api.event.client.ClientTickCallback;
 import net.minecraft.block.Blocks;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.ChatScreen;
@@ -36,15 +36,21 @@ import net.minecraft.client.util.InputUtil;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.network.listener.PacketListener;
 import net.minecraft.network.packet.Packet;
-import net.minecraft.network.packet.c2s.play.CommandExecutionC2SPacket;
 import net.minecraft.network.packet.s2c.play.CloseScreenS2CPacket;
+import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Vec3d;
 import org.jetbrains.annotations.NotNull;
 import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 
 public class CodeClient implements ModInitializer {
@@ -72,6 +78,8 @@ public class CodeClient implements ModInitializer {
     public static Location lastLocation = null;
     public static Location location = null;
     public static boolean shouldReload = false;
+    public static boolean overwriteSuggestions = false;
+    public static boolean compareCommands = false;
 
     /**
      * For all receiving packet events and debugging.
@@ -92,6 +100,55 @@ public class CodeClient implements ModInitializer {
             return true;
         }
         return false;
+    }
+
+    /**
+     * For handling chat suggestions from mixin.
+     * @param suggestions Chat Suggestions of course !!
+     * @throws IOException amongus it throws exceptions, so professional description
+     */
+    public static void handleChatSuggestions(Suggestions suggestions) throws IOException {
+        if(!compareCommands) return;
+        compareCommands = false;
+        File file = new File(FileManager.readFile("suggestions.txt")); //you should create file first or else it will crash L
+
+        /*
+        if(!file.exists()) {
+            Utility.sendMessage(Text.literal("No suggestions found, creating a new file."));
+            List<String> suggestionNames = new ArrayList<>();
+            suggestions.getList().forEach(suggestion -> suggestionNames.add(suggestion.getText()));
+            Path path = FileManager.writeFile("suggestions.txt", String.join("\n", suggestionNames));
+            Utility.sendMessage(Text.literal("Wrote suggestions to " + path));
+            return;
+        }*/
+
+        //bad implementation so shur up
+        String[] array = file.toString().split("\n");
+        List<String> list = Arrays.stream(array).toList();
+        List<String> newCommands = new ArrayList<>();
+
+        suggestions.getList().forEach(suggestion -> {
+            if(suggestion.getText().startsWith("hypercube:")) {
+                if (!list.contains(suggestion.getText())) newCommands.add(suggestion.getText());
+            }
+        });
+
+        Utility.sendMessage(Text.literal("New commands: " + newCommands));
+
+        if(!overwriteSuggestions) {
+            Utility.sendMessage(Text.literal("Did not overwrite suggestions (/overwrite to overwrite)"));
+            return;
+        }
+        overwriteSuggestions = false;
+        Utility.sendMessage(Text.literal("Overwriting suggestions."));
+        List<String> suggestionNames = new ArrayList<>();
+        suggestions.getList().forEach(suggestion -> {
+            if(suggestion.getText().startsWith("hypercube:")) {
+                suggestionNames.add(suggestion.getText());
+            }
+        });
+        Path path = FileManager.writeFile("suggestions.txt", String.join("\n", suggestionNames));
+        Utility.sendMessage(Text.literal("Wrote suggestions to " + path));
     }
 
     /**
